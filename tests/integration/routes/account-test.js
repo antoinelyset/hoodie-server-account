@@ -36,6 +36,12 @@ var getAccountRouteOptions = {
   headers: headersWithAuth
 }
 
+var getAccountProfileRouteOptions = {
+  method: 'GET',
+  url: '/session/account/profile',
+  headers: headersWithAuth
+}
+
 var deleteAccountRouteOptions = {
   method: 'DELETE',
   url: '/session/account',
@@ -203,6 +209,61 @@ getServer(function (error, server) {
         delete response.result.meta
         t.is(response.statusCode, 200, 'returns 200 status')
         t.deepEqual(response.result.included, accountWithProfileFixture.included, 'returns account in right format')
+        t.end()
+      })
+    })
+
+    group.end()
+  })
+
+  test('GET /session/account/profile', function (group) {
+    // For now all tests within here are skipped anyway
+    couchdbErrorTests(server, group, couchdbGetUserMock, getAccountProfileRouteOptions)
+
+    group.test('Session does exist', function (t) {
+      var couch = mockUserFound({
+        profile: {
+          fullName: 'Pat Doe',
+          email: 'pat@example.com'
+        }
+      })
+      var profileFixture = require('../fixtures/profile.json')
+
+      server.inject(getAccountProfileRouteOptions, function (response) {
+        t.is(couch.pendingMocks()[0], undefined, 'all mocks satisfied')
+        delete response.result.meta
+        t.is(response.statusCode, 200, 'returns 200 status')
+        t.deepEqual(response.result, profileFixture, 'returns profile in right format')
+        t.end()
+      })
+    })
+
+    group.test('Session does not exist', function (t) {
+      var couch = couchdbGetUserMock
+        .reply(404, {error: 'Unauthorized'})
+
+      server.inject(getAccountProfileRouteOptions, function (response) {
+        t.is(couch.pendingMocks()[0], undefined, 'all mocks satisfied')
+        t.is(response.statusCode, 401, 'returns 401 status')
+        t.is(response.result.errors.length, 1, 'returns one error')
+        t.is(response.result.errors[0].title, 'Unauthorized', 'returns "Unauthorized" error')
+        t.end()
+      })
+    })
+
+    group.test('User Is admin', function (t) {
+      var requestOptions = defaultsDeep({
+        headers: {
+          // calculateSessionId('admin', '1081b31861bd1e91611341da16c11c16a12c13718d1f712e', 'secret', 1209600)
+          authorization: 'Bearer YWRtaW46MTI3NTAwOh08V1EljPqAPAnv8mtxWNF87zdW'
+        }
+      }, getAccountProfileRouteOptions)
+
+      server.inject(requestOptions, function (response) {
+        delete response.result.meta
+        t.is(response.statusCode, 403, 'returns 403 status')
+
+        t.deepEqual(response.result.errors[0].detail, 'Admins have no account', 'returns account in right format')
         t.end()
       })
     })
