@@ -86,6 +86,7 @@ getServer(function (error, server) {
 
   test('PUT /session/account', function (group) {
     couchdbErrorTests(server, group, couchdbPutUserMock, putAccountRouteOptions)
+    authorizationHeaderNotAllowedErrorTest(server, group, putAccountRouteOptions)
     invalidTypeErrors(server, group, putAccountRouteOptions)
 
     group.test('User not found', function (t) {
@@ -133,7 +134,6 @@ getServer(function (error, server) {
   })
 
   test('GET /session/account', function (group) {
-    authorizationHeaderNotAllowedErrorTest(server, group, putAccountRouteOptions)
     couchdbErrorTests(server, group, couchdbGetUserMock, getAccountRouteOptions)
 
     group.test('Session does exist', function (t) {
