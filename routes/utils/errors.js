@@ -10,6 +10,12 @@ function hoodieError (options) {
   return error
 }
 
+module.exports.NO_ACTIVE_SESSION = hoodieError({
+  name: 'Unauthorized',
+  message: 'No active session',
+  status: 401
+})
+
 module.exports.FORBIDDEN_ADMIN_ACCOUNT = hoodieError({
   name: 'Forbidden',
   message: 'Admins have no account',

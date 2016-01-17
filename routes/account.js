@@ -7,12 +7,16 @@ var Boom = require('boom')
 
 var errors = require('./utils/errors')
 var joiFailAction = require('./utils/joi-fail-action')
-var serialiseAccount = require('./utils/serialise-account')
+var serAccount = require('./utils/serialise-account')
+var serProfile = require('./utils/serialise-profile')
 var toBearerToken = require('./utils/request-to-bearer-token')
 var validations = require('./utils/validations')
 
 function accountRoutes (server, options, next) {
-  var serialise = serialiseAccount.bind(null, {
+  var serialiseAccount = serAccount.bind(null, {
+    baseUrl: server.info.uri
+  })
+  var serialiseProfile = serProfile.bind(null, {
     baseUrl: server.info.uri
   })
   var admins = options.admins
@@ -43,7 +47,7 @@ function accountRoutes (server, options, next) {
         id: id
       })
 
-      .then(serialise)
+      .then(serialiseAccount)
 
       .then(function (json) {
         reply(json).code(201)
@@ -91,7 +95,7 @@ function accountRoutes (server, options, next) {
         return session.account
       })
 
-      .then(serialise)
+      .then(serialiseAccount)
 
       .then(reply)
 
@@ -136,7 +140,7 @@ function accountRoutes (server, options, next) {
 
       .then(function (account) {
         if (request.query.include) {
-          return reply(serialise(account)).code(200)
+          return reply(serialiseAccount(account)).code(200)
         }
 
         reply().code(204)
@@ -149,10 +153,62 @@ function accountRoutes (server, options, next) {
     }
   }
 
+  var getAccountProfileRoute = {
+    method: 'GET',
+    path: '/session/account/profile',
+    config: {
+      auth: false,
+      validate: {
+        headers: validations.bearerTokenHeader,
+        failAction: joiFailAction
+      }
+    },
+    handler: function (request, reply) {
+      var sessionId = toBearerToken(request)
+
+      // check for admin. If not found, check for user
+      admins.validateSession(sessionId)
+
+      .then(function (doc) {
+        throw errors.FORBIDDEN_ADMIN_ACCOUNT
+      })
+
+      .catch(function (error) {
+        if (error.name === 'not_found') {
+          return sessions.find(sessionId, {
+            include: 'account.profile'
+          })
+          .catch(function(error) {
+            if (error.status === 404) {
+              throw errors.NO_ACTIVE_SESSION
+            }
+          })
+        }
+
+        throw error
+      })
+
+      .then(function (session) {
+        return session.account
+      })
+
+      .then(serialiseProfile)
+
+      .then(reply)
+
+      .catch(function (error) {
+        error = errors.parse(error)
+        reply(Boom.create(error.status, error.message))
+      })
+
+    }
+  }
+
   server.route([
     getAccountRoute,
     signUpRoute,
-    destroyAccountRoute
+    destroyAccountRoute,
+    getAccountProfileRoute
   ])
 
   next()
