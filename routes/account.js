@@ -178,7 +178,7 @@ function accountRoutes (server, options, next) {
           return sessions.find(sessionId, {
             include: 'account.profile'
           })
-          .catch(function(error) {
+          .catch(function (error) {
             if (error.status === 404) {
               throw errors.NO_ACTIVE_SESSION
             }
@@ -200,7 +200,6 @@ function accountRoutes (server, options, next) {
         error = errors.parse(error)
         reply(Boom.create(error.status, error.message))
       })
-
     }
   }
 
